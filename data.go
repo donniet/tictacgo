@@ -34,6 +34,11 @@ type Position struct {
 	pos [9]Square
 }
 
+type SquarePosition struct {
+	Row, Col int
+	Square   Square
+}
+
 func (p Position) String() string {
 	s := ""
 	for i := 0; i < 9; i++ {
@@ -76,6 +81,16 @@ func FromString(pos string) (Position, error) {
 		return q, ErrorInvalidFormat
 	}
 	return q, nil
+}
+
+func (p Position) Squares() []SquarePosition {
+	r := []SquarePosition{}
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			r = append(r, SquarePosition{Row: i, Col: j, Square: p.Get(i, j)})
+		}
+	}
+	return r
 }
 
 func (p *Position) Set(x, y int, s Square) {
