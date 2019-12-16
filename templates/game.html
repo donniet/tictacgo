@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-    <title>TicTac Turn {{.Turn}}</title>
+    <title>TicTac Turn {{.Position.Turn}}</title>
     <script type="text/javascript">
         function emptyClick(x,y) {
             moveCol = document.getElementById('moveCol');
@@ -20,17 +20,27 @@
     </style>
 </head>
 <body>
+    {{ if eq .Position.IsWin X }}
+        <h1>X wins!</h1>
+    {{ else if eq .Position.IsWin O }}
+        <h2>O wins!</h2>
+    {{ else if .Position.IsComplete }}
+        <h2>Cat's Game</h2> 
+    {{ else }}
+        <h2>{{.Position.Turn}}'s Turn</h2>
+    {{ end }}
     <div id="board">
     
-    {{ template "position.html" . }}
+    {{ template "position.html" .Position }}
 
     <div>
-        <a href="?board={{.String}}&yield=true">yield</a> |
+        <a href="?board={{.Position.String}}&yield=true">yield</a> |
         <a href="?board">reset</a>
     </div>
 
     <form method="POST" action="{{ postAction }}" id="poster">
-        <input type="hidden" value="{{queryEscape .String}}" name="position" />
+        <input type="hidden" value="{{queryEscape .Position.String}}" name="position" />
+        <input type="hidden" value="{{queryEscape .HistoryJSON}}" name="history" />
         <input type="hidden" name="col" id="moveCol" />
         <input type="hidden" name="row" id="moveRow" />
     </form>

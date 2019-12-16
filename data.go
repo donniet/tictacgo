@@ -1,5 +1,10 @@
 package tictacgo
 
+import (
+	"encoding/json"
+	"log"
+)
+
 type Square uint8
 
 const (
@@ -32,6 +37,32 @@ const (
 
 type Position struct {
 	pos [9]Square
+}
+
+func (p *Position) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+
+	log.Printf("unmarshalled: '%s'", s)
+
+	if err != nil {
+		return err
+	}
+
+	pos, err := FromString(s)
+	if err != nil {
+		return err
+	}
+
+	*p = pos
+	return nil
+}
+
+func (p Position) MarshalJSON() ([]byte, error) {
+	s := p.String()
+	log.Printf("marshalled string: '%s'", s)
+
+	return json.Marshal(s)
 }
 
 type SquarePosition struct {
@@ -168,7 +199,7 @@ func (p Position) Rotate(i int) Position {
 			}
 		}
 	case 3:
-		// rotate once clockwise
+		// rotate thrice clockwise
 		for x := 0; x < 3; x++ {
 			for y := 0; y < 3; y++ {
 				q.Set(x, y, p.Get(2-y, x))
@@ -198,13 +229,12 @@ func (p Position) Turn() Square {
 	return O
 }
 
-func (p Position) Next() []Position {
+func (p Position) Next() (ret []Position) {
 	s := p.Turn()
-	var ret []Position
 
 	// if it's a winner there are no more valid next positions
 	if p.IsWin() != Empty {
-		return ret
+		return
 	}
 
 	for x := 0; x < 3; x++ {
@@ -217,7 +247,11 @@ func (p Position) Next() []Position {
 		}
 	}
 
-	return ret
+	return
+}
+
+func (p Position) IsComplete() bool {
+	return len(p.Next()) == 0
 }
 
 func (p Position) IsWin() Square {
