@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"math"
+	"math/rand"
 )
 
 type Scorer interface {
@@ -70,27 +70,51 @@ func (e *Evaluation) Save(w io.Writer) error {
 
 func (e *Evaluation) Result(moves []Position, winFor Square) {
 	for _, m := range moves {
-		if _, ok := e.positions[m]; !ok {
-			e.positions[m] = make(Tally)
+		sym := m.Symmetries()
+		found := false
+		for _, p := range sym {
+			if t, ok := e.positions[p]; ok {
+				t[winFor]++
+				found = true
+				break
+			}
 		}
-		e.positions[m][winFor]++
+
+		if !found {
+			e.positions[m] = make(Tally)
+			e.positions[m][winFor]++
+		}
 	}
 }
 
+func (e *Evaluation) getTallyWithSymmetry(pos Position) Tally {
+	sym := pos.Symmetries()
+
+	for _, p := range sym {
+		if t, ok := e.positions[p]; ok {
+			return t
+		}
+	}
+
+	return Tally{}
+}
+
 func (e *Evaluation) Score(pos Position, turn Square) float64 {
-	unadjusted := float64(e.positions[pos][Empty])
+	t := e.getTallyWithSymmetry(pos)
+
+	unadjusted := float64(t[Empty])
 
 	switch turn {
 	case X:
-		unadjusted += float64(e.positions[pos][X])
-		unadjusted -= float64(e.positions[pos][O])
+		unadjusted += float64(t[X])
+		unadjusted -= float64(t[O])
 	case O:
-		unadjusted -= float64(e.positions[pos][X])
-		unadjusted += float64(e.positions[pos][O])
+		unadjusted -= float64(t[X])
+		unadjusted += float64(t[O])
 	}
 
 	// adjust it by curiosity
-	return unadjusted + e.Curiosity*math.Exp(-unadjusted)
+	return unadjusted + e.Curiosity*rand.Float64()
 }
 
 func (e *Evaluation) ChooseNext(pos Position) (Position, error) {

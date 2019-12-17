@@ -2,7 +2,6 @@ package tictacgo
 
 import (
 	"encoding/json"
-	"log"
 )
 
 type Square uint8
@@ -35,6 +34,17 @@ const (
 	ErrorInvalidFormat = TicTacError("invalid position format")
 )
 
+type Symmetry int
+
+const (
+	SymmetryIdentity Symmetry = iota
+	SymmetryFlipX
+	SymmetryFlipY
+	SymmetryRotate1
+	SymmetryRotate2
+	SymmetryRotate3
+)
+
 type Position struct {
 	pos [9]Square
 }
@@ -42,8 +52,6 @@ type Position struct {
 func (p *Position) UnmarshalJSON(b []byte) error {
 	var s string
 	err := json.Unmarshal(b, &s)
-
-	log.Printf("unmarshalled: '%s'", s)
 
 	if err != nil {
 		return err
@@ -60,7 +68,6 @@ func (p *Position) UnmarshalJSON(b []byte) error {
 
 func (p Position) MarshalJSON() ([]byte, error) {
 	s := p.String()
-	log.Printf("marshalled string: '%s'", s)
 
 	return json.Marshal(s)
 }
@@ -112,6 +119,19 @@ func FromString(pos string) (Position, error) {
 		return q, ErrorInvalidFormat
 	}
 	return q, nil
+}
+
+func (p Position) Symmetries() map[Symmetry]Position {
+	ret := make(map[Symmetry]Position)
+
+	ret[SymmetryIdentity] = p
+	ret[SymmetryFlipX] = p.FlipX()
+	ret[SymmetryFlipY] = p.FlipY()
+	ret[SymmetryRotate1] = p.Rotate(1)
+	ret[SymmetryRotate2] = p.Rotate(2)
+	ret[SymmetryRotate3] = p.Rotate(3)
+
+	return ret
 }
 
 func (p Position) Squares() []SquarePosition {
