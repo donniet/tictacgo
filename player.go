@@ -5,13 +5,12 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"sync"
 )
 
 type Scorer interface {
 	Score(Position, Square) float64
 }
-
-type Tally map[Square]int // tally of wins or cats games
 
 type EvaluationError string
 
@@ -27,20 +26,28 @@ const (
 )
 
 type Evaluation struct {
-	positions map[Position]Tally
+	// how good is this position for X (negative is good for O)
+	positions map[Position]int
+	m         sync.Locker
 	Curiosity float64 // value from 0 to 1
 }
 
 type jsonEvaluation struct {
-	Positions map[Position]Tally `json:"positions"`
-	Curiosity float64            `json:"curiosity"`
+	Positions map[string]int `json:"positions"`
+	Curiosity float64        `json:"curiosity"`
 }
 
 func NewEvaluation() *Evaluation {
-	return &Evaluation{positions: make(map[Position]Tally)}
+	return &Evaluation{
+		positions: make(map[Position]int),
+		m:         &sync.Mutex{},
+	}
 }
 
 func (e *Evaluation) Load(r io.Reader) error {
+	e.m.Lock()
+	defer e.m.Unlock()
+
 	var t jsonEvaluation
 
 	if b, err := ioutil.ReadAll(r); err != nil {
@@ -49,15 +56,39 @@ func (e *Evaluation) Load(r io.Reader) error {
 		return err
 	}
 
-	e.positions = t.Positions
+	e.positions = make(map[Position]int)
+
+	for k, v := range t.Positions {
+		pos, err := FromString(k)
+		if err != nil {
+			return err
+		}
+		e.positions[pos] = v
+	}
 	e.Curiosity = t.Curiosity
 
 	return nil
 }
 
+func (e *Evaluation) Reset() {
+	e.m.Lock()
+	defer e.m.Unlock()
+
+	e.positions = make(map[Position]int)
+}
+
 func (e *Evaluation) Save(w io.Writer) error {
+	e.m.Lock()
+	defer e.m.Unlock()
+
+	pos := make(map[string]int)
+
+	for k, v := range e.positions {
+		pos[k.String()] = v
+	}
+
 	t := jsonEvaluation{
-		Positions: e.positions,
+		Positions: pos,
 		Curiosity: e.Curiosity,
 	}
 	if b, err := json.Marshal(&t); err != nil {
@@ -69,52 +100,67 @@ func (e *Evaluation) Save(w io.Writer) error {
 }
 
 func (e *Evaluation) Result(moves []Position, winFor Square) {
+	e.m.Lock()
+	defer e.m.Unlock()
+
 	for _, m := range moves {
 		sym := m.Symmetries()
 		found := false
-		for _, p := range sym {
-			if t, ok := e.positions[p]; ok {
-				t[winFor]++
+		for s, p := range sym {
+			if _, ok := e.positions[p]; ok {
+				if winFor == Empty {
+					e.positions[p]-- // cats games reward O
+				} else if (winFor == X && s != SymmetryFlipSymbols) || (winFor == O && s == SymmetryFlipSymbols) {
+					e.positions[p] += 5 - len(moves)/2 // reward the length of the game
+				} else {
+					e.positions[p] -= 5 - len(moves)/2
+				}
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			e.positions[m] = make(Tally)
-			e.positions[m][winFor]++
+			if winFor == Empty {
+				e.positions[m]--
+			} else if winFor == X {
+				e.positions[m] += 5 - len(moves)/2
+			} else {
+				e.positions[m] -= 5 - len(moves)/2
+			}
 		}
 	}
 }
 
-func (e *Evaluation) getTallyWithSymmetry(pos Position) Tally {
+// must be called under lock
+func (e *Evaluation) getTallyWithSymmetry(pos Position) (int, Symmetry) {
 	sym := pos.Symmetries()
 
-	for _, p := range sym {
+	for sym, p := range sym {
 		if t, ok := e.positions[p]; ok {
-			return t
+			return t, sym
 		}
 	}
 
-	return Tally{}
+	return 0, SymmetryIdentity
 }
 
 func (e *Evaluation) Score(pos Position, turn Square) float64 {
-	t := e.getTallyWithSymmetry(pos)
+	e.m.Lock()
+	defer e.m.Unlock()
 
-	unadjusted := float64(t[Empty])
+	t, sym := e.getTallyWithSymmetry(pos)
 
-	switch turn {
-	case X:
-		unadjusted += float64(t[X])
-		unadjusted -= float64(t[O])
-	case O:
-		unadjusted -= float64(t[X])
-		unadjusted += float64(t[O])
+	score := 0.
+
+	if (turn == X && sym != SymmetryFlipSymbols) || (turn == O && sym == SymmetryFlipSymbols) {
+		score = float64(t)
+	} else {
+		score = float64(-t)
 	}
 
 	// adjust it by curiosity
-	return unadjusted + e.Curiosity*rand.Float64()
+	return score + e.Curiosity*rand.Float64()
 }
 
 func (e *Evaluation) ChooseNext(pos Position) (Position, error) {

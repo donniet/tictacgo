@@ -91,6 +91,17 @@ func main() {
 	}
 
 	mux.Handle("/game", ParsePosition(server))
+	mux.HandleFunc("/positions", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := server.Eval.Save(w); err != nil {
+			log.Printf("error saving evaluations: %s", err)
+		}
+	})
+	mux.HandleFunc("/reset", func(w http.ResponseWriter, r *http.Request) {
+		server.Eval.Reset()
+
+		http.Redirect(w, r, "/game", http.StatusTemporaryRedirect)
+	})
 
 	http.ListenAndServe(":8080", mux)
 }

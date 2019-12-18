@@ -14,7 +14,7 @@ func AllValidPositionsEquiv() []Position {
 
 		next := p.Next()
 		for _, q := range next {
-			if !visited[q] && !visited[q.FlipX()] && !visited[q.FlipY()] && !visited[q.Rotate(1)] && !visited[q.Rotate(2)] && !visited[q.Rotate(3)] {
+			if !visited[q] && !visited[q.FlipX()] && !visited[q.FlipY()] && !visited[q.Rotate(1)] && !visited[q.Rotate(2)] && !visited[q.Rotate(3)] && !visited[q.FlipSymbols()] {
 				visited[q] = true
 				stack = append(stack, q)
 			}

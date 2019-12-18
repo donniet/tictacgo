@@ -43,6 +43,7 @@ const (
 	SymmetryRotate1
 	SymmetryRotate2
 	SymmetryRotate3
+	SymmetryFlipSymbols
 )
 
 type Position struct {
@@ -130,6 +131,8 @@ func (p Position) Symmetries() map[Symmetry]Position {
 	ret[SymmetryRotate1] = p.Rotate(1)
 	ret[SymmetryRotate2] = p.Rotate(2)
 	ret[SymmetryRotate3] = p.Rotate(3)
+	// careful with this one!
+	// ret[SymmetryFlipSymbols] = p.FlipSymbols()
 
 	return ret
 }
@@ -164,6 +167,23 @@ func (p *Position) Clear() {
 	for i := range p.pos {
 		p.pos[i] = Empty
 	}
+}
+
+func (p Position) FlipSymbols() Position {
+	q := Position{}
+
+	for x := 0; x < 3; x++ {
+		for y := 0; y < 3; y++ {
+			switch p.Get(x, y) {
+			case X:
+				q.Set(x, y, O)
+			case O:
+				q.Set(x, y, X)
+			}
+		}
+	}
+
+	return q
 }
 
 func (p Position) FlipX() Position {

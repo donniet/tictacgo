@@ -72,6 +72,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		position = &pos
 		history = append([]tictacgo.Position{pos}, history...)
+
+		if position.IsComplete() {
+			s.Eval.Result(history, position.IsWin())
+		}
 	}
 
 	b, err := json.Marshal(history)
