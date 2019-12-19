@@ -32,7 +32,9 @@
 				</g>
 			{{ else }}
 				<g class="empty" transform="translate({{ mul .Row 40 }},{{mul .Col 40 }})">
-					<rect onclick="emptyClick({{.Col}},{{.Row}})" x="0" y="0" width="40" height="40" style="fill: rgba(0,0,0,0);" />
+					{{ if not .IsComplete }}
+						<rect onclick="emptyClick({{.Col}},{{.Row}})" x="0" y="0" width="40" height="40" style="fill: rgba(0,0,0,0);" />
+					{{ end }}
 				</g>
 			{{ end }}
 		{{ end }}

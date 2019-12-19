@@ -31,7 +31,7 @@ func init() {
 		"mul":         func(x, y int) int { return x * y },
 		"postAction":  func() string { return "game" },
 		"queryEscape": func(str string) string { return url.QueryEscape(str) },
-	}).ParseGlob("../templates/*.html"))
+	}).ParseGlob("templates/*.html"))
 }
 
 // WritePosition writes out the position using the embedded template to a Writer
